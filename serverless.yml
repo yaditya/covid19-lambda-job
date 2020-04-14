@@ -1,0 +1,48 @@
+service: covid19job
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+
+functions:
+  getTestingLocations:
+    handler: handler.getTestingLocations
+
+    resources:
+      Resources:
+        donkeyjobs:
+          Type: AWS::DynamoDB::Table
+          Properties:
+            TableName: covid19jobs
+            AttributeDefinitions:
+              - AttributeName: locationId
+                AttributeType: S
+            KeySchema:
+              - AttributeName: locationId
+                KeyType: HASH
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+
+        # A policy is a resource that states one or more permssions. It lists actions, resources and effects.
+
+        DynamoDBIamPolicy:
+          Type: AWS::IAM::Policy
+          DependsOn: covid19jobs
+          Properties:
+            PolicyName: lambda-dynamodb
+            PolicyDocument:
+              Version: '2020-04-15'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:DescribeTable
+                    - dynamodb:Query
+                    - dynamodb:Scan
+                    - dynamodb:GetItem
+                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
+                    - dynamodb:DeleteItem
+                  Resource: arn:aws:dynamodb:*:*:table/covid19jobs
+            Roles:
+              - Ref: IamRoleLambdaExecution
