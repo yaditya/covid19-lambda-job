@@ -13,7 +13,7 @@ functions:
 
     resources:
       Resources:
-        donkeyjobs:
+        covid19jobs:
           Type: AWS::DynamoDB::Table
           Properties:
             TableName: covid19jobs
@@ -35,7 +35,7 @@ functions:
           Properties:
             PolicyName: lambda-dynamodb
             PolicyDocument:
-              Version: '2020-04-15'
+              Version: '2012-10-17'
               Statement:
                 - Effect: Allow
                   Action:
