@@ -24,7 +24,6 @@ module.exports.getTestingLocations = async (e, c, callback) => {
       // }
 
       allLocations = extractListingsFromHTML(data);
-      console.log('allLocations', allLocations);
 
       // Retrieve yesterday's jobs
       // return dynamo
