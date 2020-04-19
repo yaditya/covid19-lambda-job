@@ -1,60 +1,27 @@
 const request = require('axios');
 const AWS = require('aws-sdk');
 const dynamo = new AWS.DynamoDB.DocumentClient();
+const s3 = new AWS.S3();
 const { differenceWith, isEqual } = require('lodash');
 const { extractListingsFromHTML } = require('./helpers');
 const URL = 'https://www.finder.com.au/coronavirus-testing-locations';
+const KEY_NAME = 'clinic-locations.json';
 const params = {
-  TableName: 'covid19jobs',
+  TableName: process.env.DYNAMODB_TABLE,
 };
 
-module.exports.getTestingLocations = async (e, c, callback) => {
+module.exports.getTestingLocations = (e, c, callback) => {
   let allLocations;
   let newLocations;
 
   request(URL)
     .then(({ data }) => {
-      // console.log('data', data);
-
-      // if (data.status !== 200) {
-      //   return callback(null, {
-      //     statusCode: data.status,
-      //     body: JSON.stringify({ error: 'Could not fetch data' }),
-      //   });
-      // }
-
       allLocations = extractListingsFromHTML(data);
 
       // Retrieve yesterday's jobs
-      // return dynamo
-      //   .scan({
-      //     TableName: 'covid19jobs',
-      //   })
-      //   .promise();
-
-      dynamo.scan(params, (error, result) => {
-        // handle potential errors
-        if (error) {
-          console.error(error);
-          callback(null, {
-            statusCode: error.statusCode || 501,
-            headers: { 'Content-Type': 'text/plain' },
-            body: "Couldn't fetch the locations.",
-          });
-          return;
-        }
-
-        // create a response
-        const response = {
-          statusCode: 200,
-          body: JSON.stringify(result.Items),
-        };
-        callback(null, response);
-      });
+      return dynamo.scan(params).promise();
     })
     .then((response) => {
-      console.log('response', response);
-
       // Figure out which jobs are new
       let yesterdaysData = response.Items[0] ? response.Items[0].locations : [];
 
@@ -69,7 +36,7 @@ module.exports.getTestingLocations = async (e, c, callback) => {
       if (locationsToDelete) {
         return dynamo
           .delete({
-            TableName: 'covid19jobs',
+            ...params,
             Key: {
               locationId: locationsToDelete,
             },
@@ -81,7 +48,7 @@ module.exports.getTestingLocations = async (e, c, callback) => {
       // Save the list of today's data
       return dynamo
         .put({
-          TableName: 'covid19jobs',
+          ...params,
           Item: {
             locationId: new Date().toString(),
             locations: allLocations,
@@ -90,13 +57,24 @@ module.exports.getTestingLocations = async (e, c, callback) => {
         .promise();
     })
     .then(() => {
+      const s3Params = {
+        Bucket: process.env.BUCKET_NAME,
+        Key: KEY_NAME,
+        Body: JSON.stringify(allLocations),
+        ContentType: 'application/json',
+      };
+
+      // Upload to S3
+      return s3
+        .putObject(s3Params, function (err, data) {
+          if (err)
+            console.log(`${JSON.stringify(err)} ${JSON.stringify(data)}`);
+          return;
+        })
+        .promise();
+    })
+    .then(() => {
       callback(null, { locations: allLocations });
     })
-    .catch((error) => {
-      console.error(error);
-      return callback(null, {
-        statusCode: 500,
-        body: JSON.stringify({ error }),
-      });
-    });
+    .catch(callback);
 };
