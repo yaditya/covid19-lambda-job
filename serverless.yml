@@ -5,47 +5,56 @@ service: covid19job
 provider:
   name: aws
   runtime: nodejs12.x
+  stage: dev
   region: ap-southeast-2
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${opt:stage, self:provider.stage}-table
+    BUCKET_NAME: covid19job-dev-serverless-bucket
+    STAGE: ${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 's3:PutObject'
+        - 's3:GetObject'
+      Resource: arn:aws:s3:::${self:provider.environment.BUCKET_NAME}/*
 
 functions:
   getTestingLocations:
     handler: handler.getTestingLocations
 
-    resources:
-      Resources:
-        donkeyjobs:
-          Type: AWS::DynamoDB::Table
-          Properties:
-            TableName: covid19jobs
-            AttributeDefinitions:
-              - AttributeName: locationId
-                AttributeType: S
-            KeySchema:
-              - AttributeName: locationId
-                KeyType: HASH
-            ProvisionedThroughput:
-              ReadCapacityUnits: 1
-              WriteCapacityUnits: 1
-
-        # A policy is a resource that states one or more permssions. It lists actions, resources and effects.
-
-        DynamoDBIamPolicy:
-          Type: AWS::IAM::Policy
-          DependsOn: covid19jobs
-          Properties:
-            PolicyName: lambda-dynamodb
-            PolicyDocument:
-              Version: '2020-04-15'
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - dynamodb:DescribeTable
-                    - dynamodb:Query
-                    - dynamodb:Scan
-                    - dynamodb:GetItem
-                    - dynamodb:PutItem
-                    - dynamodb:UpdateItem
-                    - dynamodb:DeleteItem
-                  Resource: arn:aws:dynamodb:*:*:table/covid19jobs
-            Roles:
-              - Ref: IamRoleLambdaExecution
+resources:
+  Resources:
+    covid19jobs:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: locationId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: locationId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    DynamoDBIamPolicy:
+      Type: AWS::IAM::Policy
+      DependsOn: covid19jobs
+      Properties:
+        PolicyName: lambda-dynamodb
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+              Resource: arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}
+        Roles:
+          - Ref: IamRoleLambdaExecution

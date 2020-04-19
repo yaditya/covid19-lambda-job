@@ -5,6 +5,7 @@ const extractListingsFromHTML = (html) => {
   const locationRows = $('.luna-table--responsiveList tbody tr');
 
   const locations = [];
+
   locationRows.each((i, el) => {
     const childEl = $(el).children('td');
     const centreName = $(childEl).eq(0).text().trim();
@@ -22,9 +23,8 @@ const extractListingsFromHTML = (html) => {
       address,
       openingHours,
     });
-
-    return locations;
   });
+  return locations;
 };
 
 module.exports = {
