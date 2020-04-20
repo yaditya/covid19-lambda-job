@@ -21,6 +21,8 @@ provider:
 functions:
   getTestingLocations:
     handler: handler.getTestingLocations
+    events:
+      - schedule: rate(2 days)
 
 resources:
   Resources:
