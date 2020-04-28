@@ -22,7 +22,9 @@ functions:
   getTestingLocations:
     handler: handler.getTestingLocations
     events:
-      - schedule: rate(2 days)
+      - schedule:
+          enabled: true
+          rate: rate(2 days)
 
 resources:
   Resources:
